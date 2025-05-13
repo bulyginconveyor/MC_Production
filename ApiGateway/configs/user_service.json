@@ -1,0 +1,47 @@
+{
+  "Routes" : [
+    
+    //AUTHENTICATION
+    {
+      "UpstreamPathTemplate": "/api/login",
+      "UpstreamHttpMethod": [ "Post" ],
+      
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        { 
+          "Host": "user-service", 
+          "Port": "8080" 
+        }
+      ],
+      "DownstreamPathTemplate": "/api/auth/login"
+    },
+    {
+      "UpstreamPathTemplate": "/api/register",
+      "UpstreamHttpMethod": [ "Post" ],
+
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "user-service",
+          "Port": "8080"
+        }
+      ],
+      "DownstreamPathTemplate": "/api/auth/register"
+    },
+    {
+      "UpstreamPathTemplate": "/api/confirm_email",
+      "UpstreamHttpMethod": [ "Post" ],
+
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "user_service",
+          "Port": "8080"
+        }
+      ],
+      "DownstreamPathTemplate": "/api/auth/confirm_email"
+    }
+    
+    
+  ]
+}
