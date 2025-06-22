@@ -35,11 +35,24 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "user_service",
+          "Host": "user-service",
           "Port": "8080"
         }
       ],
       "DownstreamPathTemplate": "/api/auth/confirm_email"
+    },
+    {
+      "UpstreamPathTemplate": "/api/update_token",
+      "UpstreamHttpMethod": [ "Post" ],
+
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "user-service",
+          "Port": "8080"
+        }
+      ],
+      "DownstreamPathTemplate": "/api/auth/update_token"
     }
     
     

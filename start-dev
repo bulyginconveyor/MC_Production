@@ -1,0 +1,31 @@
+#!/usr/bin/env zsh
+
+if [ -n "$1" ]
+then
+
+case "$1" in 
+  -b) ;;
+  -r) ;;
+  *) echo "Please provide argument -b (Build) or -r (Start)";;
+esac
+  
+echo "Starting dev server..."
+
+echo "Changing permissions for db-directory..."
+sudo chmod -R 777 ./db
+
+echo "Changing permissions for kafka-directory..."
+sudo chmod -R 777 ./kafka
+
+echo "Changing permissions for OcelotConfigs-directory..."
+sudo chmod -R 777 ./ApiGateway/configs
+
+echo "Running docker-compose..."
+case "$1" in
+  -b) docker compose up --build;;
+  -r) docker compose up;;
+esac
+
+else
+  echo "Please provide argument -b (Build) or -r (Start)"
+fi

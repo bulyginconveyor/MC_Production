@@ -20,4 +20,7 @@ RUN dotnet publish "ApiGateway.csproj" -c $BUILD_CONFIGURATION -o /app/publish /
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+USER root
+RUN chmod -R 777 /app/configs
+USER app
 ENTRYPOINT ["dotnet", "ApiGateway.dll"]
