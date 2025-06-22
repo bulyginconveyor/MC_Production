@@ -1,0 +1,102 @@
+{
+  "Routes" : [
+
+    {
+      "UpstreamPathTemplate": "/api/currencies",
+      "UpstreamHttpMethod": [ "Get" ],
+
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "core-service",
+          "Port": "8080"
+        }
+      ],
+      "DownstreamPathTemplate": "/currencies",
+
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/bank_accounts",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "core-service",
+          "Port": "8080"
+        }
+      ],
+      "UpstreamPathTemplate": "/api/bank_accounts",
+      "UpstreamHttpMethod": [ "PATCH" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "AddHeadersToRequest": {
+        "Authorization": "{headers.Authorization}"
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/bank_accounts/debet",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "core-service",
+          "Port": "8080"
+        }
+      ],
+      "UpstreamPathTemplate": "/api/bank_accounts/debet",
+      "UpstreamHttpMethod": [
+        "POST"
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "AddHeadersToRequest": {
+        "Authorization": "{headers.Authorization}"
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/bank_accounts/active",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "core-service",
+          "Port": "8080"
+        }
+      ],
+      "UpstreamPathTemplate": "/api/bank_accounts/active",
+      "UpstreamHttpMethod": [ "POST" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "AddHeadersToRequest": {
+        "Authorization": "{headers.Authorization}"
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/bank_accounts/credit",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "core-service",
+          "Port": "8080"
+        }
+      ],
+      "UpstreamPathTemplate": "/api/bank_accounts/credit",
+      "UpstreamHttpMethod": [ "POST" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "AddHeadersToRequest": {
+        "Authorization": "{headers.Authorization}"
+      }
+    }
+    
+  ]
+}

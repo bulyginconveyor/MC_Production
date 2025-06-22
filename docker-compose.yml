@@ -1,0 +1,231 @@
+networks:
+  auth:
+  notify:
+  kafka-net:
+  kafka-backend:
+  
+  backend:
+  core-service:
+  user-service:
+  notify-service:
+  
+  frontend:
+
+services:
+  # Adminer
+  adminer:
+    image: adminer
+    ports:
+      - 8001:8080
+    depends_on:
+      - core-db
+      - user-db
+      - notify-db
+    networks:
+      - core-service
+      - user-service
+      - notify-service
+  
+  # Confluentinc.Kafka (Zookeeper + kafka)
+  #zookeeper:
+  #  image: confluentinc/cp-zookeeper
+  #  container_name: zookeeper
+  #  ports:
+  #    - 2181:2181
+  #  environment:
+  #    - ZOOKEEPER_CLIENT_PORT=2181
+  #    - ZOOKEEPER_TICK_TIME=2000
+  #  networks:
+  #    - kafka-backend
+  #  volumes:
+  #    - ./kafka/zoo/data:/var/lib/zookeeper/data
+  #    - ./kafka/zoo/log:/var/lib/zookeeper/log
+
+  kafka:
+    image: bitnami/kafka:3.6  # Лучше всего работает с KRaft
+    container_name: kafka
+    ports:
+      - 9092:${KAFKA_PORT}
+      - "9093:9093"  # Для контроллера KRaft
+    environment:
+      # Обязательные параметры
+      - KAFKA_ENABLE_KRAFT=yes
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_CLUSTER_ID=my-homebudget-cluster-1  # Любой уникальный ID
+
+      # Настройки кворума
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+
+      # Сетевые настройки
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+
+      # Автоматическая генерация топиков
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+    volumes:
+      - ./kafka/kafka:/var/lib/kafka/data
+    networks:
+      - kafka-net
+      - kafka-backend
+  
+  # API-Gateway (ASP.NET Core 8.0 + Ocelot)
+  api-gateway:
+    image: api-gateway
+    build:
+      context: .
+      dockerfile: ./ApiGateway/Dockerfile
+    restart: always
+    ports:
+      - 80:8080
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
+    networks:
+      - auth
+      - backend
+      - frontend
+    depends_on:
+      - core-service
+      - user-service
+      - notify-service
+  
+  #Core service (PostgreSQL + Redis + ASP.NET Core 8.0)
+  core-db:
+    container_name: core-db
+    image: postgres:17-alpine
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD=${COREDB_PASSWORD}
+      - POSTGRES_DB=${COREDB_NAMEDB}
+      - POSTGRES_USER=${COREDB_USER}
+    volumes:
+      - ./db/core_db:/var/lib/postgresql/data
+    networks:
+      - core-service
+  
+  core-cache:
+    container_name: core-cache
+    image: redis:alpine
+    environment:
+      - REDIS_PASSWORD=${CORECACHE_PASSWORD}
+      - REDIS_REPLICATION_MODE=master
+    networks:
+      - core-service
+  
+  core-service:
+    image: core-service
+    build:
+      context: services/MC_Core/
+      dockerfile: core_service/Dockerfile
+    restart: always
+    environment:
+      - REDIS_CONNECTION=core-cache:${CORECACHE_PORT},password:${CORECACHE_PASSWORD}
+      - DB_PASSWORD=${COREDB_PASSWORD}
+      - DB_NAME=${COREDB_NAMEDB}
+      - DB_USER=${COREDB_USER}
+      - DB_SERVER=core-db
+      - DB_PORT=5432
+    networks:
+      - core-service
+      - backend
+    depends_on:
+      - core-db
+      - core-cache
+
+  #User service (Kafka connect + PostgreSQL + ASP.NET Core 8.0)
+  user-db:
+    container_name: user-db
+    image: postgres:17-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${USERDB_USER}
+      POSTGRES_PASSWORD: ${USERDB_PASSWORD}
+      POSTGRES_DB: ${USERDB_NAMEDB}
+    volumes:
+      - ./db/user_db:/var/lib/postgresql/data
+    networks:
+      - user-service
+
+  user-cache:
+    container_name: user-cache
+    image: redis:alpine
+    environment:
+      - REDIS_PASSWORD=${USERCACHE_PASSWORD}
+      - REDIS_REPLICATION_MODE=master
+    networks:
+      - user-service
+  
+  user-service:
+    image: user-service
+    build:
+      context: services/MC_User/
+      dockerfile: user_service/Dockerfile
+    restart: always
+    environment:
+      - REDIS_CONNECTION=user-cache:${USERCACHE_PORT},password:${USERCACHE_PASSWORD}
+      - DB_PASSWORD=${USERDB_PASSWORD}
+      - DB_NAME=${USERDB_NAMEDB}
+      - DB_USER=${USERDB_USER}
+      - DB_SERVER=user-db
+      - DB_PORT=5432
+      - JWT_SECRET=${JWT_SECRET}
+      - ADDRESS_NOTIFICATION_SERVICE=notify-service:8080
+      - KAFKA_SERVER=kafka:${KAFKA_PORT}
+      - KAFKA_TOPIC_MAIN=${KAFKA_TOPIC_MAIN}
+      - KAFKA_TOPIC_SENDTOEMAIL=${KAFKA_TOPIC_SENDTOEMAIL}
+      - REFRESH_TOKEN_EXPIRES_DAYS=${REFRESH_TOKEN_EXPIRES_DAYS}
+      - ACCESS_TOKEN_EXPIRES_MINS=${ACCESS_TOKEN_EXPIRES_MINS}
+    networks:
+      - user-service
+      - auth
+      - backend
+      - kafka-net
+    depends_on:
+      - user-db
+      - user-cache
+      - kafka
+  
+  #Notify service (Kafka connect + PostgreSQL + ASP.NET Core 8.0)
+  notify-db:
+    container_name: notify-db
+    image: postgres:17-alpine
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD=${NOTIFYDB_PASSWORD}
+      - POSTGRES_DB=${NOTIFYDB_NAMEDB}
+      - POSTGRES_USER=${NOTIFYDB_USER}
+    volumes:
+      - ./db/notify_db:/var/lib/postgresql/data
+    networks:
+      - notify-service
+
+  notify-service:
+    image: notify-service
+    build:
+      context: services/MC_Notify/
+      dockerfile: notification_service/Dockerfile
+    restart: always
+    environment:
+      - DB_PASSWORD=${NOTIFYDB_PASSWORD}
+      - DB_NAME=${NOTIFYDB_NAMEDB}
+      - DB_USER=${NOTIFYDB_USER}
+      - DB_SERVER=notify-db
+      - DB_PORT=5432
+      - APP_ADDRESS=${APP_ADDRESS}
+      - KAFKA_SERVER=kafka:${KAFKA_PORT}
+      - KAFKA_TOPIC_MAIN=${KAFKA_TOPIC_MAIN}
+      - KAFKA_TOPIC_SENDTOEMAIL=${KAFKA_TOPIC_SENDTOEMAIL}
+      - KAFKA_GROUP_ID=${KAFKA_GROUP_ID}
+      - KAFKA_AUTO_OFFSET_RESET=${KAFKA_AUTO_OFFSET_RESET}
+      - MAIL_SERVICE=${MAIL_SERVICE}
+      - EMAIL_SENDER=${EMAIL_SENDER}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+    networks:
+      - notify-service
+      - backend
+      - kafka-net
+    depends_on:
+      - notify-db
+      - kafka
